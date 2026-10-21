@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Monitoring Mesin Pipe Surge and Water Hammer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+</head>
+<body class="bg-[#F0F4F8] text-slate-800 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { 
+          Activity, 
+          Settings, 
+          AlertTriangle, 
+          Clock, 
+          Waves, 
+          CircleDot,
+          Zap,
+          ShieldCheck,
+          Volume2,
+          VolumeX
+        } = lucide;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = Recharts;
+
+        const App = () => {
+          const [data, setData] = useState({
+            tekananSebelum: 1.20,
+            tekananSesudah: 0.90,
+            lajuAlir: 42.5,
+            durasiPenutupan: 0.85,
+            statusGetaran1: 0,
+            statusGetaran2: 0,
+            alarmMsg: "NORMAL - Sistem aman",
+            levelAlarm: 0,
+            buzzer: false,
+            timestamp: new Date().toLocaleTimeString(),
+            historySebelum: []
+          });
+
+          useEffect(() => {
+            const generateRealTimeData = () => {
+              const now = new Date().toLocaleTimeString();
+              const randomSeed = Math.random();
+              let valTekananSebelum, valDurasi, isVibrating;
+
+              if (randomSeed > 0.90) { 
+                valTekananSebelum = parseFloat((2.5 + Math.random() * 0.3).toFixed(2));
+                valDurasi = 0.15;
+                isVibrating = 1;
+              } else if (randomSeed > 0.75) { 
+                valTekananSebelum = parseFloat((2.0 + Math.random() * 0.2).toFixed(2));
+                valDurasi = 0.35;
+                isVibrating = 0;
+              } else { 
+                valTekananSebelum = parseFloat((1.0 + Math.random() * 0.5).toFixed(2));
+                valDurasi = 0.8;
+                isVibrating = 0;
+              }
+
+              const valTekananSesudah = parseFloat((valTekananSebelum * 0.8).toFixed(2));
+
+              let alarm = "NORMAL - Sistem aman";
+              let level = 0;
+              let buzzerOn = false;
+
+              if (valDurasi <= 0.2 && valTekananSebelum >= 2.5) {
+                alarm = "DANGER - WATER HAMMER BERAT! HENTIKAN!";
+                level = 2;
+                buzzerOn = true;
+              } else if (valDurasi <= 0.4 || valTekananSebelum >= 2.0) {
+                alarm = "WARNING - POTENSI WATER HAMMER TINGGI";
+                level = 1;
+                buzzerOn = true; 
+              } else if (isVibrating > 0) {
+                alarm = "WARNING - GETARAN ABNORMAL, PERIKSA PIPA";
+                level = 1;
+                buzzerOn = false;
+              }
+
+              setData(prev => ({
+                ...prev,
+                tekananSebelum: valTekananSebelum,
+                tekananSesudah: valTekananSesudah,
+                durasiPenutupan: valDurasi,
+                statusGetaran1: isVibrating,
+                statusGetaran2: isVibrating,
+                alarmMsg: alarm,
+                levelAlarm: level,
+                buzzer: buzzerOn,
+                timestamp: now,
+                historySebelum: [...prev.historySebelum.slice(-14), { time: now, val: valTekananSebelum }]
+              }));
+            };
+
+            const interval = setInterval(generateRealTimeData, 3000);
+            return () => clearInterval(interval);
+          }, []);
+
+          const getStatusConfig = (level) => {
+            switch(level) {
+              case 2: return { color: 'bg-red-500', text: 'text-white', led: 'bg-red-500 shadow-[0_0_10px_#ef4444]', label: 'DANGER' };
+              case 1: return { color: 'bg-[#EAB308]', text: 'text-black', led: 'bg-yellow-400 shadow-[0_0_10px_#facc15]', label: 'WARNING' };
+              default: return { color: 'bg-emerald-500', text: 'text-white', led: 'bg-emerald-400 shadow-[0_0_10px_#34d399]', label: 'NORMAL' };
+            }
+          };
+
+          const status = getStatusConfig(data.levelAlarm);
+
+          return (
+            <div className="min-h-screen bg-[#F0F4F8] p-4 md:p-6 font-sans text-slate-800">
+              <header className="max-w-7xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <Activity className="text-[#1E293B]" size={32} />
+                  <div>
+                    <h1 className="text-xl md:text-2xl font-black tracking-tight text-[#1E293B] uppercase">
+                      Sistem Monitoring Mesin Pipe Surge and Water Hammer
+                    </h1>
+                    <p className="text-slate-500 text-[10px] font-bold tracking-widest uppercase">Laboratorium Otomasi Industri</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${status.led}`}></div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Sistem</span>
+                    <div className="h-4 w-px bg-slate-200"></div>
+                    <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
+                      <Clock size={14} /> {data.timestamp}
+                    </span>
+                  </div>
+                </div>
+              </header>
+
+              <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-8 space-y-6">
+                  <div className={`${status.color} ${status.text} p-8 rounded-[2rem] shadow-lg flex items-center gap-8 relative overflow-hidden transition-colors duration-500`}>
+                    <div className="bg-black/10 p-5 rounded-2xl">
+                      {data.levelAlarm === 2 ? <Zap size={48} /> : data.levelAlarm === 1 ? <AlertTriangle size={48} /> : <ShieldCheck size={48} />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-70 mb-1">Pusat Notifikasi</p>
+                      <h2 className="text-2xl font-black uppercase tracking-tight italic">{data.alarmMsg}</h2>
+                      <div className="mt-2 inline-flex items-center gap-2 bg-black/5 px-3 py-1 rounded-full text-[10px] font-bold">
+                        <Volume2 size={12} /> BUZZER: {data.buzzer ? 'ON' : 'OFF'}
+                      </div>
+                    </div>
+                    <Activity className="absolute -right-10 -bottom-10 opacity-10" size={200} />
+                  </div>
+
+                  <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-center mb-8">
+                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tren Tekanan Inlet (Bar)</h3>
+                       <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter">Data Real-Time Aktif</span>
+                    </div>
+                    <div className="h-72 w-full">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <LineChart data={data.historySebelum}>
+                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                           <XAxis dataKey="time" hide />
+                           <YAxis domain={[0, 4]} fontSize={10} tickLine={false} axisLine={false} />
+                           <Tooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px rgba(0,0,0,0.05)' }} />
+                           <Line 
+                            type="monotone" 
+                            dataKey="val" 
+                            stroke={data.levelAlarm === 2 ? '#ef4444' : data.levelAlarm === 1 ? '#EAB308' : '#10b981'} 
+                            strokeWidth={4} 
+                            dot={false} 
+                           />
+                         </LineChart>
+                       </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-6">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Tekanan Inlet</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-[#1E293B]">{data.tekananSebelum}</span>
+                          <span className="text-xs font-bold text-slate-400 uppercase">Bar</span>
+                        </div>
+                      </div>
+                      <div className="bg-emerald-50 p-3 rounded-2xl text-emerald-500">
+                        <Activity size={24} />
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Durasi Tutup</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-[#1E293B]">{data.durasiPenutupan}</span>
+                          <span className="text-xs font-bold text-slate-400 uppercase">Detik</span>
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-2xl text-slate-400">
+                        <Settings size={24} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 text-center">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">Status Getaran Pipa</h3>
+                    <div className="flex justify-around items-center">
+                      {[1, 2].map(id => (
+                        <div key={id} className="flex flex-col items-center gap-2">
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${data.statusGetaran1 ? 'bg-orange-100 text-orange-500' : 'bg-slate-50 text-slate-200'}`}>
+                            <CircleDot size={32} />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Sensor {id}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {data.statusGetaran1 > 0 && (
+                       <p className="text-[10px] font-black text-orange-600 mt-6 uppercase animate-pulse">Getaran Abnormal!</p>
+                    )}
+                  </div>
+
+                  <div className="bg-[#0F172A] p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Indikator Output</h3>
+                    <div className="space-y-6 relative z-10">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${status.led}`}></div>
+                          <span className="text-xs font-bold text-slate-300 uppercase italic">Panel LED</span>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{status.label}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <Volume2 size={16} className={data.buzzer ? 'text-yellow-400' : 'text-slate-600'} />
+                          <span className="text-xs font-bold text-slate-300 uppercase italic">Buzzer</span>
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${data.buzzer ? 'text-yellow-400' : 'text-slate-600'}`}>
+                          {data.buzzer ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                    </div>
+                    <Waves className="absolute -bottom-10 -left-10 text-white/5" size={120} />
+                  </div>
+                </div>
+              </main>
+
+              <footer className="max-w-7xl mx-auto mt-12 py-6 border-t border-slate-200 flex justify-between items-center text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">
+                <div className="flex items-center gap-2">
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                   PETROKIMIA_BANTEN_CONNECTED
+                </div>
+                <span>Sistem Keamanan Praktikum</span>
+              </footer>
+            </div>
+          );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
