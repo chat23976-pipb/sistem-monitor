@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Monitoring Mesin Pipe Surge and Water Hammer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.com/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for reliable charting without React dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-[#F0F4F8] text-slate-800 font-sans min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-4">
+                <div class="bg-slate-100 p-3 rounded-2xl text-slate-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-[#1E293B] uppercase">
+                        Sistem Monitoring Mesin Pipe Surge and Water Hammer
+                    </h1>
+                    <p class="text-slate-500 text-[10px] font-bold tracking-widest uppercase">Laboratorium Otomasi Industri</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-full border border-slate-200">
+                <div class="flex items-center gap-3">
+                    <div id="status-led" class="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]"></div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Sistem</span>
+                    <div class="h-4 w-px bg-slate-200"></div>
+                    <span id="timestamp" class="text-xs font-bold text-slate-600">00:00:00</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Kiri: Notifikasi & Grafik -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- Notifikasi Panel -->
+                <div id="alarm-panel" class="bg-emerald-500 text-white p-8 rounded-[2rem] shadow-lg flex items-center gap-8 relative overflow-hidden transition-colors duration-500">
+                    <div class="bg-black/10 p-5 rounded-2xl" id="alarm-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-[10px] font-black uppercase tracking-[0.3em] opacity-70 mb-1">Pusat Notifikasi</p>
+                        <h2 id="alarm-msg" class="text-2xl font-black uppercase tracking-tight italic">NORMAL - Sistem aman</h2>
+                        <div class="mt-2 inline-flex items-center gap-2 bg-black/10 px-3 py-1 rounded-full text-[10px] font-bold">
+                            BUZZER: <span id="buzzer-status">OFF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Section -->
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                    <div class="flex justify-between items-center mb-8">
+                       <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tren Tekanan Inlet (Bar)</h3>
+                       <span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter">Data Real-Time Aktif</span>
+                    </div>
+                    <div class="h-72 w-full relative">
+                       <canvas id="pressureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kanan: Sensor Cards -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- Tekanan Card -->
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Tekanan Inlet</p>
+                        <div class="flex items-baseline gap-1">
+                          <span id="val-tekanan" class="text-3xl font-black text-[#1E293B]">1.20</span>
+                          <span class="text-xs font-bold text-slate-400 uppercase">Bar</span>
+                        </div>
+                      </div>
+                      <div class="bg-emerald-50 p-3 rounded-2xl text-emerald-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                      </div>
+                    </div>
+
+                    <!-- Durasi Card -->
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Durasi Tutup</p>
+                        <div class="flex items-baseline gap-1">
+                          <span id="val-durasi" class="text-3xl font-black text-[#1E293B]">0.85</span>
+                          <span class="text-xs font-bold text-slate-400 uppercase">Detik</span>
+                        </div>
+                      </div>
+                      <div class="bg-slate-50 p-3 rounded-2xl text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                      </div>
+                    </div>
+                </div>
+
+                <!-- Vibrasi Card -->
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 text-center">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">Status Getaran Pipa</h3>
+                    <div class="flex justify-around items-center">
+                        <div class="flex flex-col items-center gap-2">
+                          <div id="vibration-icon-1" class="w-16 h-16 rounded-full flex items-center justify-center bg-slate-50 text-slate-200 transition-all duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="1"></circle></svg>
+                          </div>
+                          <span class="text-[10px] font-bold text-slate-400 uppercase">Sensor 1</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2">
+                          <div id="vibration-icon-2" class="w-16 h-16 rounded-full flex items-center justify-center bg-slate-50 text-slate-200 transition-all duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="1"></circle></svg>
+                          </div>
+                          <span class="text-[10px] font-bold text-slate-400 uppercase">Sensor 2</span>
+                        </div>
+                    </div>
+                    <p id="vibration-alert" class="text-[10px] font-black text-orange-600 mt-6 uppercase hidden animate-pulse">Getaran Abnormal!</p>
+                </div>
+
+                <!-- Output Card -->
+                <div class="bg-[#0F172A] p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Indikator Output</h3>
+                    <div class="space-y-6 relative z-10">
+                      <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                          <div id="output-led" class="w-3 h-3 rounded-full bg-emerald-400"></div>
+                          <span class="text-xs font-bold text-slate-300 uppercase italic">Panel LED</span>
+                        </div>
+                        <span id="output-label" class="text-[10px] font-black uppercase tracking-widest">NORMAL</span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                          <span class="text-xs font-bold text-slate-300 uppercase italic">Buzzer</span>
+                        </div>
+                        <span id="output-buzzer" class="text-[10px] font-black uppercase tracking-widest text-slate-500">OFF</span>
+                      </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="mt-12 py-6 border-t border-slate-200 flex justify-between items-center text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">
+            <div class="flex items-center gap-2">
+               <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+               PETROKIMIA_BANTEN_CONNECTED
+            </div>
+            <span>Sistem Keamanan Praktikum</span>
+        </footer>
+    </div>
+
+    <script>
+        // Setup Chart.js
+        const ctx = document.getElementById('pressureChart').getContext('2d');
+        const pressureChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Tekanan Inlet (Bar)',
+                    data: [],
+                    borderColor: '#10b981',
+                    borderWidth: 4,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { min: 0, max: 4, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        function updateDashboard() {
+            const now = new Date().toLocaleTimeString();
+            const randomSeed = Math.random();
+            let valTekanan, valDurasi, isVibrating;
+
+            if (randomSeed > 0.90) {
+                valTekanan = parseFloat((2.5 + Math.random() * 0.3).toFixed(2));
+                valDurasi = 0.15;
+                isVibrating = 1;
+            } else if (randomSeed > 0.75) {
+                valTekanan = parseFloat((2.0 + Math.random() * 0.2).toFixed(2));
+                valDurasi = 0.35;
+                isVibrating = 0;
+            } else {
+                valTekanan = parseFloat((1.0 + Math.random() * 0.5).toFixed(2));
+                valDurasi = 0.8;
+                isVibrating = 0;
+            }
+
+            // Logic Alarm
+            let alarmMsg = "NORMAL - Sistem aman";
+            let level = 0; // 0: Normal, 1: Warning, 2: Danger
+            let buzzer = false;
+
+            if (valDurasi <= 0.2 && valTekanan >= 2.5) {
+                alarmMsg = "DANGER - WATER HAMMER BERAT! HENTIKAN!";
+                level = 2;
+                buzzer = true;
+            } else if (valDurasi <= 0.4 || valTekanan >= 2.0) {
+                alarmMsg = "WARNING - POTENSI WATER HAMMER TINGGI";
+                level = 1;
+                buzzer = true;
+            } else if (isVibrating > 0) {
+                alarmMsg = "WARNING - GETARAN ABNORMAL, PERIKSA PIPA";
+                level = 1;
+                buzzer = false;
+            }
+
+            // Update UI DOM elements
+            document.getElementById('timestamp').innerText = now;
+            document.getElementById('val-tekanan').innerText = valTekanan;
+            document.getElementById('val-durasi').innerText = valDurasi;
+
+            const alarmPanel = document.getElementById('alarm-panel');
+            const statusLed = document.getElementById('status-led');
+            const outputLed = document.getElementById('output-led');
+            const outputLabel = document.getElementById('output-label');
+            const outputBuzzer = document.getElementById('output-buzzer');
+            const buzzerStatus = document.getElementById('buzzer-status');
+
+            if (level === 2) {
+                alarmPanel.className = "bg-red-500 text-white p-8 rounded-[2rem] shadow-lg flex items-center gap-8 relative overflow-hidden transition-colors duration-500";
+                statusLed.className = "w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444]";
+                outputLed.className = "w-3 h-3 rounded-full bg-red-500";
+                outputLabel.innerText = "DANGER";
+                outputLabel.className = "text-[10px] font-black uppercase tracking-widest text-red-400";
+                pressureChart.data.datasets[0].borderColor = '#ef4444';
+            } else if (level === 1) {
+                alarmPanel.className = "bg-amber-500 text-black p-8 rounded-[2rem] shadow-lg flex items-center gap-8 relative overflow-hidden transition-colors duration-500";
+                statusLed.className = "w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b]";
+                outputLed.className = "w-3 h-3 rounded-full bg-amber-400";
+                outputLabel.innerText = "WARNING";
+                outputLabel.className = "text-[10px] font-black uppercase tracking-widest text-amber-400";
+                pressureChart.data.datasets[0].borderColor = '#f59e0b';
+            } else {
+                alarmPanel.className = "bg-emerald-500 text-white p-8 rounded-[2rem] shadow-lg flex items-center gap-8 relative overflow-hidden transition-colors duration-500";
+                statusLed.className = "w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]";
+                outputLed.className = "w-3 h-3 rounded-full bg-emerald-400";
+                outputLabel.innerText = "NORMAL";
+                outputLabel.className = "text-[10px] font-black uppercase tracking-widest text-emerald-400";
+                pressureChart.data.datasets[0].borderColor = '#10b981';
+            }
+
+            document.getElementById('alarm-msg').innerText = alarmMsg;
+            buzzerStatus.innerText = buzzer ? 'ON' : 'OFF';
+            outputBuzzer.innerText = buzzer ? 'ON' : 'OFF';
+            outputBuzzer.className = buzzer ? "text-[10px] font-black uppercase tracking-widest text-amber-400" : "text-[10px] font-black uppercase tracking-widest text-slate-500";
+
+            // Vibration status
+            const v1 = document.getElementById('vibration-icon-1');
+            const v2 = document.getElementById('vibration-icon-2');
+            const vAlert = document.getElementById('vibration-alert');
+            if (isVibrating > 0) {
+                v1.className = "w-16 h-16 rounded-full flex items-center justify-center bg-orange-100 text-orange-500 transition-all duration-300";
+                v2.className = "w-16 h-16 rounded-full flex items-center justify-center bg-orange-100 text-orange-500 transition-all duration-300";
+                vAlert.classList.remove('hidden');
+            } else {
+                v1.className = "w-16 h-16 rounded-full flex items-center justify-center bg-slate-50 text-slate-200 transition-all duration-300";
+                v2.className = "w-16 h-16 rounded-full flex items-center justify-center bg-slate-50 text-slate-200 transition-all duration-300";
+                vAlert.classList.add('hidden');
+            }
+
+            // Chart update
+            if (pressureChart.data.labels.length > 15) {
+                pressureChart.data.labels.shift();
+                pressureChart.data.datasets[0].data.shift();
+            }
+            pressureChart.data.labels.push(now);
+            pressureChart.data.datasets[0].data.push(valTekanan);
+            pressureChart.update('none');
+        }
+
+        setInterval(updateDashboard, 3000);
+        updateDashboard();
+    </script>
+</body>
+</html>
